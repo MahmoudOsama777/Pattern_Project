@@ -1,3 +1,6 @@
+import warnings
+warnings.filterwarnings('ignore')
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -6,72 +9,93 @@ import kagglehub
 import pandas as pd
 import os
 from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
+from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.feature_selection import SelectKBest, f_classif
-from sklearn.decomposition import PCA  # إضافة PCA لتقليل الأبعاد
-
-
+from sklearn.decomposition import PCA 
+from sklearn.feature_selection import RFE  
 
 path = kagglehub.dataset_download("georgesaavedra/news-popularity-in-social-media-platforms")
-
 
 file_path = os.path.join(path, "News_Final.csv") 
 
 
 df = pd.read_csv(file_path)
 
-
-df = df.dropna() 
-df = df.drop_duplicates()  
-
-df['Popularity'] = (df['Facebook'] > 1000).astype(int)
+df = df.dropna()  
+df = df.drop_duplicates() 
 
 
-X = df[['SentimentTitle', 'SentimentHeadline', 'Topic', 'Source']] 
-y = df['Popularity'] 
+df['PublishDate'] = pd.to_datetime(df['PublishDate'])
+df['Year'] = df['PublishDate'].dt.year
+df['Month'] = df['PublishDate'].dt.month
+df['Hour'] = df['PublishDate'].dt.hour
+
+
+df['Popularity'] = (df['Facebook'] > 1000).astype(int)  
+
+X = df[['SentimentTitle', 'SentimentHeadline', 'Topic', 'Source', 'GooglePlus', 'LinkedIn', 'Month', 'Hour']].copy()
+y = df['Popularity']
 
 
 le = LabelEncoder()
-
-
 for col in X.select_dtypes(include=['object']).columns:
     X[col] = le.fit_transform(X[col])
 
 
-selector = SelectKBest(score_func=f_classif, k=3)
-X_new = selector.fit_transform(X, y)
+model_rfe = LogisticRegression(max_iter=1000) 
+rfe = RFE(model_rfe, n_features_to_select=3)  
+X_rfe = rfe.fit_transform(X, y)
 
-selected_features = X.columns[selector.get_support()]
-print("Selected Features:\n", selected_features)
-
-
-pca = PCA(n_components=3)
-X_pca = pca.fit_transform(X_new)
+selected_features_rfe = X.columns[rfe.support_]
+print("Selected Features using RFE:\n", selected_features_rfe)
 
 
-X_train, X_test, y_train, y_test = train_test_split(X_pca, y, test_size=0.2)
+pca = PCA(n_components=3)  
+X_pca = pca.fit_transform(X_rfe)  
+
+X_train, X_test, y_train, y_test = train_test_split(X_pca, y, test_size=0.2) 
 
 
-model = LogisticRegression(max_iter=1000)
-model.fit(X_train, y_train)
+log_model = LogisticRegression(max_iter=1000)
+log_model.fit(X_train, y_train)
 
 
-y_pred = model.predict(X_test)
-print("Logistic Regression Accuracy:", accuracy_score(y_test, y_pred))
+y_pred_log = log_model.predict(X_test)
+log_accuracy = accuracy_score(y_test, y_pred_log)
+print("Logistic Regression Accuracy: ", log_accuracy)
 
 
-model2 = RandomForestClassifier()
-model2.fit(X_train, y_train)
+rf_model = RandomForestClassifier()
+rf_model.fit(X_train, y_train)
 
-y_pred2 = model2.predict(X_test)
-print("Random Forest Accuracy:", accuracy_score(y_test, y_pred2))
 
-df_numerical = df.select_dtypes(include=[np.number])
+y_pred_rf = rf_model.predict(X_test)
+rf_accuracy = accuracy_score(y_test, y_pred_rf)
+print("Random Forest Accuracy: ", rf_accuracy)
+
+
+df_numerical = df.select_dtypes(include=[np.number])  
 
 plt.figure(figsize=(10, 6))
 sns.heatmap(df_numerical.corr(), annot=True, cmap='coolwarm')
 plt.title("Correlation Heatmap")
+plt.show()
+
+plt.figure(figsize=(10, 6))
+sns.countplot(x='Topic', hue='Popularity', data=df, palette='Set2')
+plt.title('Distribution of News by Topic and Popularity')
+plt.xlabel('Topic')
+plt.ylabel('Count')
+plt.xticks(rotation=45)
+plt.show()
+
+plt.figure(figsize=(10, 6))
+sns.histplot(df['SentimentHeadline'], kde=True, color='purple')
+plt.title('Sentiment Distribution of Headlines')
+plt.xlabel('Sentiment')
+plt.ylabel('Frequency')
 plt.show()
