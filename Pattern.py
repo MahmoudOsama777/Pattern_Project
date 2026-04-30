@@ -54,46 +54,43 @@ selected_features_rfe = X.columns[rfe.support_]
 print("Selected Features using RFE:\n", selected_features_rfe)
 
 
-pca = PCA(n_components=3)  
-X_pca = pca.fit_transform(X_rfe)  
+X_train_base, X_test_base, y_train, y_test = train_test_split(X_rfe, y, test_size=0.2, random_state=42)
 
-X_train, X_test, y_train, y_test = train_test_split(X_pca, y, test_size=0.2) 
+rf_full = RandomForestClassifier(n_estimators=50, random_state=42)
+rf_full.fit(X_train_base, y_train)
+acc_before = accuracy_score(y_test, rf_full.predict(X_test_base))
 
-
-
-rf_full = RandomForestClassifier(n_estimators=50, random_state=42).fit(X_train, y_train)
-acc_before = accuracy_score(y_test, rf_full.predict(X_test))
-
-print(f"Results BEFORE Dimension Reduction (8 Features):")
+print(f"Results BEFORE Dimension Reduction (Using {X_train_base.shape[1]} RFE-selected features):")
 print(f"- Accuracy: {acc_before:.4f}")
 
 
-pca = PCA(n_components=3)
-X_train_pca = pca.fit_transform(X_train)
-X_test_pca = pca.transform(X_test)
+pca = PCA(n_components=3) 
+X_train_pca = pca.fit_transform(X_train_base)
+X_test_pca = pca.transform(X_test_base)
 
-rf_pca = RandomForestClassifier(n_estimators=50, random_state=42).fit(X_train_pca, y_train)
+rf_pca = RandomForestClassifier(n_estimators=50, random_state=42)
+rf_pca.fit(X_train_pca, y_train)
 acc_after = accuracy_score(y_test, rf_pca.predict(X_test_pca))
 
-print(f"Results AFTER Dimension Reduction (3 PCA Components):")
+print(f"Results AFTER Dimension Reduction (Reduced to {X_train_pca.shape[1]} PCA Components):")
 print(f"- Accuracy: {acc_after:.4f}")
 
 
 
 log_model = LogisticRegression(max_iter=1000)
-log_model.fit(X_train, y_train)
+log_model.fit(X_train_base, y_train) 
 
 
-y_pred_log = log_model.predict(X_test)
+y_pred_log = log_model.predict(X_test_base)
 log_accuracy = accuracy_score(y_test, y_pred_log)
 print("Logistic Regression Accuracy: ", log_accuracy)
 
 
 rf_model = RandomForestClassifier()
-rf_model.fit(X_train, y_train)
+rf_model.fit(X_train_base, y_train)
 
 
-y_pred_rf = rf_model.predict(X_test)
+y_pred_rf = rf_model.predict(X_test_base)
 rf_accuracy = accuracy_score(y_test, y_pred_rf)
 print("Random Forest Accuracy: ", rf_accuracy)
 
@@ -121,8 +118,8 @@ plt.show()
 depths = [2, 5, 10, 15, 20]
 rf_accs = []
 for d in depths:
-    m = RandomForestClassifier(max_depth=d, n_estimators=50, random_state=42).fit(X_train, y_train)
-    rf_accs.append(accuracy_score(y_test, m.predict(X_test)))
+    m = RandomForestClassifier(max_depth=d, n_estimators=50, random_state=42).fit(X_train_base, y_train)
+    rf_accs.append(accuracy_score(y_test, m.predict(X_test_base)))
 
 plt.figure(figsize=(8, 4))
 plt.plot(depths, rf_accs, marker='s', color='green', linewidth=2)
