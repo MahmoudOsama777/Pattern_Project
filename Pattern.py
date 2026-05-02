@@ -72,7 +72,7 @@ rf_pca = RandomForestClassifier(n_estimators=50, random_state=42)
 rf_pca.fit(X_train_pca, y_train)
 acc_after = accuracy_score(y_test, rf_pca.predict(X_test_pca))
 
-print(f"Results AFTER Dimension Reduction (Reduced to {X_train_pca.shape[1]} PCA Components):")
+print(f"Results AFTER Dimension Reduction ({X_train_pca.shape[1]} PCA Components):")
 print(f"- Accuracy: {acc_after:.4f}")
 
 
